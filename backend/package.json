@@ -1,0 +1,16 @@
+{
+  "name": "accounting-exam-api",
+  "version": "1.0.0",
+  "description": "初级会计考试复习系统API",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@tsndr/cloudflare-worker-jwt": "^3.2.1"
+  },
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

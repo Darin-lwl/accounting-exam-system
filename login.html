@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026初级会计考试复习系统 - 登录</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .auth-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .auth-header h1 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 10px;
+        }
+
+        .auth-header p {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: bold;
+            color: #999;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .auth-tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .auth-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .auth-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .auth-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #e74c3c;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .success-message {
+            background: #e8f5e9;
+            color: #4caf50;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .loading {
+            text-align: center;
+            color: #667eea;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .offline-notice {
+            background: #fff3cd;
+            color: #856404;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 0.9em;
+        }
+
+        .offline-notice a {
+            color: #667eea;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-header">
+            <h1>📚 2026初级会计考试复习系统</h1>
+            <p>登录后可在多设备间同步学习进度</p>
+        </div>
+
+        <div class="offline-notice">
+            💡 提示：首次使用请先注册账号<br>
+            <a href="#" onclick="showOfflineMode()">或点击这里离线使用（数据不会同步）</a>
+        </div>
+
+        <div class="auth-tabs">
+            <div class="auth-tab active" onclick="switchTab('login')">登录</div>
+            <div class="auth-tab" onclick="switchTab('register')">注册</div>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+        <div class="success-message" id="successMessage"></div>
+
+        <!-- 登录表单 -->
+        <form class="auth-form active" id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="loginUsername" placeholder="请输入用户名" required>
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="loginPassword" placeholder="请输入密码" required>
+            </div>
+            <button type="submit" class="auth-btn" id="loginBtn">登录</button>
+        </form>
+
+        <!-- 注册表单 -->
+        <form class="auth-form" id="registerForm" onsubmit="handleRegister(event)">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" id="registerUsername" placeholder="3-20个字符" required minlength="3" maxlength="20">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" id="registerPassword" placeholder="至少6个字符" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label>确认密码</label>
+                <input type="password" id="registerPasswordConfirm" placeholder="再次输入密码" required>
+            </div>
+            <button type="submit" class="auth-btn" id="registerBtn">注册</button>
+        </form>
+
+        <div class="loading" id="loading">处理中...</div>
+    </div>
+
+    <script>
+        // API基础URL - 部署后需要修改为你的Workers URL
+        const API_BASE_URL = 'https://accounting-exam-api.1227944456.workers.dev'; // 例如: https://accounting-exam-api.your-subdomain.workers.dev
+
+        // 切换标签
+        function switchTab(tab) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+            
+            if (tab === 'login') {
+                document.querySelectorAll('.auth-tab')[0].classList.add('active');
+                document.getElementById('loginForm').classList.add('active');
+            } else {
+                document.querySelectorAll('.auth-tab')[1].classList.add('active');
+                document.getElementById('registerForm').classList.add('active');
+            }
+            
+            hideMessages();
+        }
+
+        // 显示错误消息
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        // 显示成功消息
+        function showSuccess(message) {
+            const successEl = document.getElementById('successMessage');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        // 隐藏消息
+        function hideMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        // 显示加载
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        // 隐藏加载
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // 处理登录
+        async function handleLogin(event) {
+            event.preventDefault();
+            hideMessages();
+            
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            showLoading();
+            document.getElementById('loginBtn').disabled = true;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // 保存token和用户信息
+                    localStorage.setItem('authToken', data.token);
+                    localStorage.setItem('userInfo', JSON.stringify(data.user));
+                    localStorage.setItem('isOnlineMode', 'true');
+                    
+                    showSuccess('登录成功！正在跳转...');
+                    
+                    setTimeout(() => {
+                        window.location.href = '2026初级会计考试复习系统-完整版.html';
+                    }, 1000);
+                } else {
+                    showError(data.error || '登录失败');
+                }
+            } catch (error) {
+                showError('网络错误，请检查API地址是否正确');
+            } finally {
+                hideLoading();
+                document.getElementById('loginBtn').disabled = false;
+            }
+        }
+
+        // 处理注册
+        async function handleRegister(event) {
+            event.preventDefault();
+            hideMessages();
+            
+            const username = document.getElementById('registerUsername').value;
+            const password = document.getElementById('registerPassword').value;
+            const passwordConfirm = document.getElementById('registerPasswordConfirm').value;
+            
+            if (password !== passwordConfirm) {
+                showError('两次输入的密码不一致');
+                return;
+            }
+            
+            showLoading();
+            document.getElementById('registerBtn').disabled = true;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // 保存token和用户信息
+                    localStorage.setItem('authToken', data.token);
+                    localStorage.setItem('userInfo', JSON.stringify(data.user));
+                    localStorage.setItem('isOnlineMode', 'true');
+                    
+                    showSuccess('注册成功！正在跳转...');
+                    
+                    setTimeout(() => {
+                        window.location.href = '2026初级会计考试复习系统-完整版.html';
+                    }, 1000);
+                } else {
+                    showError(data.error || '注册失败');
+                }
+            } catch (error) {
+                showError('网络错误，请检查API地址是否正确');
+            } finally {
+                hideLoading();
+                document.getElementById('registerBtn').disabled = false;
+            }
+        }
+
+        // 离线模式
+        function showOfflineMode() {
+            localStorage.setItem('isOnlineMode', 'false');
+            window.location.href = '2026初级会计考试复习系统-完整版.html';
+        }
+
+        // 检查是否已登录
+        window.onload = function() {
+            const token = localStorage.getItem('authToken');
+            const isOnlineMode = localStorage.getItem('isOnlineMode');
+            
+            if (token && isOnlineMode === 'true') {
+                // 已登录，直接跳转
+                window.location.href = '2026初级会计考试复习系统-完整版.html';
+            }
+        };
+    </script>
+</body>
+</html>

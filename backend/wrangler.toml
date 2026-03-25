@@ -1,0 +1,13 @@
+name = "accounting-exam-api"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# D1 数据库绑定
+[[d1_databases]]
+binding = "DB"
+database_name = "accounting-exam-db"
+database_id = "8023b795-940a-457d-b184-5a46d2c5d0bd"  # 部署时需要替换为实际的数据库ID
+
+# 环境变量
+[vars]
+JWT_SECRET = "7cf582ef4cba38c0304359ffb5c363e5f2619fe58649d6a690a80ace5e9ff7f7"  # 生产环境请修改为强密钥
