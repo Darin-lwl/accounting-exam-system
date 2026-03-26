@@ -1035,7 +1035,7 @@
         document.addEventListener('DOMContentLoaded', async function() {
             await generateStudyPlan();
             renderKnowledgeCards();
-            loadWrongQuestions();
+            await loadWrongQuestions();
         });
 
         // 标签页切换
@@ -3461,7 +3461,7 @@
         }
 
         // 提交考试
-        function submitExam() {
+        async function submitExam() {
             if (examTimer) {
                 clearInterval(examTimer);
             }
@@ -3497,6 +3497,11 @@
                 }
             });
             localStorage.setItem('wrongQuestions', JSON.stringify(wrongQuestions));
+            
+            // 同步到服务器
+            if (apiService.isOnline()) {
+                await apiService.syncWrongQuestions(wrongQuestions);
+            }
 
             // 显示结果
             showExamResult(score, passed, correctCount, questions.length);
@@ -3715,7 +3720,21 @@
         }
 
         // 加载错题集
-        function loadWrongQuestions() {
+        async function loadWrongQuestions() {
+            // 在线模式下从服务器获取最新错题集
+            if (apiService.isOnline()) {
+                const response = await apiService.getWrongQuestions();
+                if (response.success && response.data) {
+                    wrongQuestions = response.data;
+                    localStorage.setItem('wrongQuestions', JSON.stringify(wrongQuestions));
+                }
+            } else {
+                const savedWrongQuestions = localStorage.getItem('wrongQuestions');
+                if (savedWrongQuestions) {
+                    wrongQuestions = JSON.parse(savedWrongQuestions);
+                }
+            }
+            
             const container = document.getElementById('wrongQuestions');
 
             if (wrongQuestions.length === 0) {
@@ -3744,10 +3763,16 @@
         }
 
         // 移除错题
-        function removeWrongQuestion(index) {
+        async function removeWrongQuestion(index) {
             if (confirm('确定要移除此题吗？')) {
                 wrongQuestions.splice(index, 1);
                 localStorage.setItem('wrongQuestions', JSON.stringify(wrongQuestions));
+                
+                // 同步到服务器
+                if (apiService.isOnline()) {
+                    await apiService.syncWrongQuestions(wrongQuestions);
+                }
+                
                 loadWrongQuestions();
             }
         }

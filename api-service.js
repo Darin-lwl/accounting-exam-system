@@ -7,20 +7,25 @@ class ApiService {
     constructor() {
         // API基础URL - 部署后需要修改为你的Workers URL
         this.baseUrl = 'https://accounting-exam-api.1227944456.workers.dev'; // 例如: https://accounting-exam-api.your-subdomain.workers.dev
-        this.token = localStorage.getItem('authToken');
-        this.isOnlineMode = localStorage.getItem('isOnlineMode') === 'true';
+    }
+
+    // 获取最新的token
+    getToken() {
+        return localStorage.getItem('authToken');
     }
 
     // 检查是否在线模式
     isOnline() {
-        return this.isOnlineMode && this.token;
+        const token = this.getToken();
+        const isOnlineMode = localStorage.getItem('isOnlineMode') === 'true';
+        return isOnlineMode && token;
     }
 
     // 获取认证头
     getAuthHeaders() {
         return {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.token}`
+            'Authorization': `Bearer ${this.getToken()}`
         };
     }
 
