@@ -1032,8 +1032,8 @@
         let wrongQuestions = JSON.parse(localStorage.getItem('wrongQuestions') || '[]');
 
         // 初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            generateStudyPlan();
+        document.addEventListener('DOMContentLoaded', async function() {
+            await generateStudyPlan();
             renderKnowledgeCards();
             loadWrongQuestions();
         });
@@ -1047,7 +1047,20 @@
         }
 
         // 生成复习计划（90天，每周5天学习，2天休息）
-        function generateStudyPlan() {
+        async function generateStudyPlan() {
+            // 在线模式下从服务器获取最新进度
+            if (apiService.isOnline()) {
+                const response = await apiService.getProgress();
+                if (response.success && response.data) {
+                    studyPlan = response.data;
+                    localStorage.setItem('studyPlan', JSON.stringify(studyPlan));
+                    renderCalendar();
+                    updateProgress();
+                    return;
+                }
+            }
+            
+            // 离线模式或获取失败时从本地获取
             const savedPlan = localStorage.getItem('studyPlan');
             if (savedPlan) {
                 studyPlan = JSON.parse(savedPlan);
@@ -1129,6 +1142,11 @@
                 }
 
                 localStorage.setItem('studyPlan', JSON.stringify(studyPlan));
+                
+                // 同步到服务器
+                if (apiService.isOnline()) {
+                    await apiService.syncProgress(studyPlan);
+                }
             }
 
             renderCalendar();
@@ -1182,10 +1200,16 @@
         }
 
         // 打卡功能
-        function checkIn(index) {
+        async function checkIn(index) {
             if (!studyPlan[index].isRest && !studyPlan[index].completed) {
                 studyPlan[index].completed = true;
                 localStorage.setItem('studyPlan', JSON.stringify(studyPlan));
+                
+                // 同步到服务器
+                if (apiService.isOnline()) {
+                    await apiService.syncProgress(studyPlan);
+                }
+                
                 renderCalendar();
                 updateProgress();
             }
@@ -1202,10 +1226,10 @@
         }
 
         // 重置计划
-        function resetPlan() {
+        async function resetPlan() {
             if (confirm('确定要重置复习计划吗？所有进度将丢失。')) {
                 localStorage.removeItem('studyPlan');
-                generateStudyPlan();
+                await generateStudyPlan();
             }
         }
 
