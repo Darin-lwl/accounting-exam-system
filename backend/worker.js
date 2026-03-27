@@ -59,7 +59,7 @@ export default {
             if (path === '/api/auth/register' && method === 'POST') {
                 const { username, password } = await request.json();
                 const result = await authService.register(username, password);
-                
+
                 // 记录审计日志
                 await auditService.log({
                     userId: result.user?.id,
@@ -68,14 +68,20 @@ export default {
                     ipAddress: getClientIP(request),
                     result: result.success ? 'success' : 'failed'
                 });
-                
+
                 return jsonResponse(
                     result.success ? {
+                        success: true,
                         message: '注册成功',
-                        user: result.user,
-                        accessToken: result.accessToken,
-                        refreshToken: result.refreshToken
-                    } : { error: result.error },
+                        data: {
+                            user: result.user,
+                            accessToken: result.accessToken,
+                            refreshToken: result.refreshToken
+                        }
+                    } : {
+                        success: false,
+                        error: { message: result.error }
+                    },
                     result.success ? 200 : 400
                 );
             }
@@ -84,7 +90,7 @@ export default {
             if (path === '/api/auth/login' && method === 'POST') {
                 const { username, password } = await request.json();
                 const result = await authService.login(username, password);
-                
+
                 // 记录审计日志
                 await auditService.log({
                     userId: result.user?.id,
@@ -93,14 +99,20 @@ export default {
                     ipAddress: getClientIP(request),
                     result: result.success ? 'success' : 'failed'
                 });
-                
+
                 return jsonResponse(
                     result.success ? {
+                        success: true,
                         message: '登录成功',
-                        user: result.user,
-                        accessToken: result.accessToken,
-                        refreshToken: result.refreshToken
-                    } : { error: result.error },
+                        data: {
+                            user: result.user,
+                            accessToken: result.accessToken,
+                            refreshToken: result.refreshToken
+                        }
+                    } : {
+                        success: false,
+                        error: { message: result.error }
+                    },
                     result.success ? 200 : 401
                 );
             }
