@@ -3,6 +3,11 @@
  * 负责显示用户信息、退出登录、切换账号、修改密码
  */
 
+// API基础URL(需要在主HTML文件中定义)
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = 'https://accounting-exam-api.1227944456.workers.dev';
+}
+
 class UserProfile {
     constructor() {
         this.user = AuthGuard.getCurrentUser();

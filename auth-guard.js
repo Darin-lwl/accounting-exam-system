@@ -3,6 +3,11 @@
  * 负责登录状态检查、Token管理、路由守卫
  */
 
+// API基础URL(需要在主HTML文件中定义)
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = 'https://accounting-exam-api.1227944456.workers.dev';
+}
+
 class AuthGuard {
     /**
      * 检查是否已登录
