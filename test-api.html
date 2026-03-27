@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API连接测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-item {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        .pending { background: #fff3cd; border-color: #ffeeba; }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        pre {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>API连接诊断工具</h1>
+    
+    <div class="test-item">
+        <h3>1. API地址配置</h3>
+        <p><strong>API_BASE_URL:</strong> <span id="apiUrl"></span></p>
+    </div>
+
+    <div class="test-item">
+        <h3>2. 测试API连接</h3>
+        <button onclick="testConnection()">测试连接</button>
+        <div id="connectionResult"></div>
+    </div>
+
+    <div class="test-item">
+        <h3>3. 测试注册接口</h3>
+        <button onclick="testRegister()">测试注册</button>
+        <div id="registerResult"></div>
+    </div>
+
+    <div class="test-item">
+        <h3>4. 测试登录接口</h3>
+        <input type="text" id="testUsername" placeholder="用户名" value="testuser">
+        <input type="password" id="testPassword" placeholder="密码" value="test123">
+        <button onclick="testLogin()">测试登录</button>
+        <div id="loginResult"></div>
+    </div>
+
+    <div class="test-item">
+        <h3>5. 检查localStorage</h3>
+        <button onclick="checkStorage()">检查存储</button>
+        <button onclick="clearStorage()">清除存储</button>
+        <div id="storageResult"></div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'https://accounting-exam-api.1227944456.workers.dev';
+        document.getElementById('apiUrl').textContent = API_BASE_URL;
+
+        async function testConnection() {
+            const resultDiv = document.getElementById('connectionResult');
+            resultDiv.innerHTML = '<p class="pending">测试中...</p>';
+            
+            try {
+                const response = await fetch(API_BASE_URL, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                const text = await response.text();
+                resultDiv.innerHTML = `
+                    <p class="success">✅ 连接成功!</p>
+                    <p>状态码: ${response.status}</p>
+                    <p>响应: <pre>${text}</pre></p>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ 连接失败!</p>
+                    <p>错误: ${error.message}</p>
+                    <p>可能原因:</p>
+                    <ul>
+                        <li>Workers未部署</li>
+                        <li>API地址错误</li>
+                        <li>网络连接问题</li>
+                        <li>CORS配置问题</li>
+                    </ul>
+                `;
+            }
+        }
+
+        async function testRegister() {
+            const resultDiv = document.getElementById('registerResult');
+            resultDiv.innerHTML = '<p class="pending">测试中...</p>';
+            
+            const testUser = 'test_' + Date.now();
+            const testPwd = 'test123456';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: testUser, password: testPwd })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ 注册成功!</p>
+                        <p>用户名: ${testUser}</p>
+                        <p>响应: <pre>${JSON.stringify(data, null, 2)}</pre></p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ 注册失败!</p>
+                        <p>状态码: ${response.status}</p>
+                        <p>响应: <pre>${JSON.stringify(data, null, 2)}</pre></p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ 请求失败!</p>
+                    <p>错误: ${error.message}</p>
+                `;
+            }
+        }
+
+        async function testLogin() {
+            const resultDiv = document.getElementById('loginResult');
+            resultDiv.innerHTML = '<p class="pending">测试中...</p>';
+            
+            const username = document.getElementById('testUsername').value;
+            const password = document.getElementById('testPassword').value;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <p class="success">✅ 登录成功!</p>
+                        <p>响应: <pre>${JSON.stringify(data, null, 2)}</pre></p>
+                    `;
+                    
+                    // 保存Token
+                    if (data.data) {
+                        localStorage.setItem('accessToken', data.data.accessToken);
+                        localStorage.setItem('refreshToken', data.data.refreshToken);
+                        localStorage.setItem('userInfo', JSON.stringify(data.data.user));
+                        resultDiv.innerHTML += '<p class="success">✅ Token已保存到localStorage</p>';
+                    }
+                } else {
+                    resultDiv.innerHTML = `
+                        <p class="error">❌ 登录失败!</p>
+                        <p>状态码: ${response.status}</p>
+                        <p>响应: <pre>${JSON.stringify(data, null, 2)}</pre></p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p class="error">❌ 请求失败!</p>
+                    <p>错误: ${error.message}</p>
+                `;
+            }
+        }
+
+        function checkStorage() {
+            const resultDiv = document.getElementById('storageResult');
+            const accessToken = localStorage.getItem('accessToken');
+            const refreshToken = localStorage.getItem('refreshToken');
+            const userInfo = localStorage.getItem('userInfo');
+            
+            resultDiv.innerHTML = `
+                <p><strong>accessToken:</strong> ${accessToken ? '已设置' : '未设置'}</p>
+                <p><strong>refreshToken:</strong> ${refreshToken ? '已设置' : '未设置'}</p>
+                <p><strong>userInfo:</strong> ${userInfo || '未设置'}</p>
+            `;
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            document.getElementById('storageResult').innerHTML = '<p class="success">✅ localStorage已清除</p>';
+        }
+    </script>
+</body>
+</html>
