@@ -2,10 +2,21 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="refresh" content="0;url=login.html">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2026初级会计考试复习系统</title>
+    <script>
+        // 检查登录状态
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+            // 已登录,跳转到主页面
+            window.location.href = '2026初级会计考试复习系统-完整版.html';
+        } else {
+            // 未登录,跳转到登录页面
+            window.location.href = 'login.html';
+        }
+    </script>
 </head>
 <body>
-    <p>正在跳转到 <a href="login.html">2026初级会计考试复习系统</a>...</p>
+    <p>正在跳转...</p>
 </body>
 </html>
