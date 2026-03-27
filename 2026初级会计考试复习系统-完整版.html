@@ -1537,7 +1537,7 @@
         let currentExam = null;
         let examTimer = null;
         let examAnswers = {};
-        let wrongQuestions = JSON.parse(localStorage.getItem('wrongQuestions') || '[]');
+        let wrongQuestions = [];
 
         // API基础URL
         const API_BASE_URL = 'https://accounting-exam-api.1227944456.workers.dev';
@@ -1602,9 +1602,20 @@
                 }
             }
 
-            await generateStudyPlan();
-            renderKnowledgeCards();
-            await loadWrongQuestions();
+            // 8. 初始化页面内容(确保即使数据加载失败也能显示)
+            try {
+                await generateStudyPlan();
+                renderKnowledgeCards();
+                await loadWrongQuestions();
+            } catch (error) {
+                console.error('初始化页面失败:', error);
+                // 即使失败也尝试显示基本内容
+                try {
+                    renderKnowledgeCards();
+                } catch (e) {
+                    console.error('渲染知识卡片失败:', e);
+                }
+            }
         });
 
         // 标签页切换
