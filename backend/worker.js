@@ -1,13 +1,13 @@
 /**
- * Cloudflare Workers API 服务
- * 用于处理用户认证和数据同步
+ * Cloudflare Workers API 网关
+ * 整合认证、同步、审计等服务的路由
+ * 添加中间件(Token验证、错误处理、日志记录)
  */
 
-// 改为直接引用包名
-import { sign, verify } from "@tsndr/cloudflare-worker-jwt";
-
-// JWT密钥（部署时需要在Cloudflare中设置环境变量 JWT_SECRET）
-const JWT_EXPIRES_IN = '7d';
+import { AuthService } from './auth-service.js';
+import { SyncService } from './sync-service.js';
+import { AuditService } from './audit-service.js';
+import { OfflineQueueService } from './offline-queue-service.js';
 
 // CORS 头
 const corsHeaders = {
@@ -15,30 +15,6 @@ const corsHeaders = {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
-
-// 密码加密（简单版本，生产环境建议使用更强的加密）
-async function hashPassword(password) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// 生成JWT Token
-async function generateToken(userId, username, secret) {
-    return await sign({ userId, username }, secret, { expiresIn: JWT_EXPIRES_IN });
-}
-
-// 验证JWT Token
-async function verifyToken(token, secret) {
-    try {
-        const payload = await verify(token, secret);
-        return payload;
-    } catch (err) {
-        return null;
-    }
-}
 
 // 返回JSON响应
 function jsonResponse(data, status = 200) {
@@ -51,264 +27,302 @@ function jsonResponse(data, status = 200) {
     });
 }
 
-// 处理用户注册
-async function handleRegister(request, env) {
-    try {
-        const { username, password } = await request.json();
-        
-        if (!username || !password) {
-            return jsonResponse({ error: '用户名和密码不能为空' }, 400);
-        }
-        
-        if (username.length < 3 || username.length > 20) {
-            return jsonResponse({ error: '用户名长度应在3-20个字符之间' }, 400);
-        }
-        
-        if (password.length < 6) {
-            return jsonResponse({ error: '密码长度至少6个字符' }, 400);
-        }
-        
-        // 检查用户是否已存在
-        const existingUser = await env.DB.prepare(
-            'SELECT id FROM users WHERE username = ?'
-        ).bind(username).first();
-        
-        if (existingUser) {
-            return jsonResponse({ error: '用户名已存在' }, 400);
-        }
-        
-        // 加密密码
-        const hashedPassword = await hashPassword(password);
-        
-        // 创建用户
-        const result = await env.DB.prepare(
-            'INSERT INTO users (username, password) VALUES (?, ?)'
-        ).bind(username, hashedPassword).run();
-        
-        // 生成Token
-        const token = await generateToken(result.meta.last_row_id, username, env.JWT_SECRET);
-        
-        return jsonResponse({
-            message: '注册成功',
-            token,
-            user: {
-                id: result.meta.last_row_id,
-                username
-            }
-        });
-    } catch (error) {
-        return jsonResponse({ error: '注册失败: ' + error.message }, 500);
-    }
-}
-
-// 处理用户登录
-async function handleLogin(request, env) {
-    try {
-        const { username, password } = await request.json();
-        
-        if (!username || !password) {
-            return jsonResponse({ error: '用户名和密码不能为空' }, 400);
-        }
-        
-        // 查找用户
-        const user = await env.DB.prepare(
-            'SELECT id, username, password FROM users WHERE username = ?'
-        ).bind(username).first();
-        
-        if (!user) {
-            return jsonResponse({ error: '用户名或密码错误' }, 401);
-        }
-        
-        // 验证密码
-        const hashedPassword = await hashPassword(password);
-        if (user.password !== hashedPassword) {
-            return jsonResponse({ error: '用户名或密码错误' }, 401);
-        }
-        
-        // 生成Token
-        const token = await generateToken(user.id, user.username, env.JWT_SECRET);
-        
-        return jsonResponse({
-            message: '登录成功',
-            token,
-            user: {
-                id: user.id,
-                username: user.username
-            }
-        });
-    } catch (error) {
-        return jsonResponse({ error: '登录失败: ' + error.message }, 500);
-    }
-}
-
-// 获取学习进度
-async function getStudyProgress(userId, env) {
-    try {
-        const progress = await env.DB.prepare(
-            'SELECT plan_data FROM study_progress WHERE user_id = ?'
-        ).bind(userId).first();
-        
-        return progress ? JSON.parse(progress.plan_data) : null;
-    } catch (error) {
-        return null;
-    }
-}
-
-// 保存学习进度
-async function saveStudyProgress(userId, planData, env) {
-    try {
-        // 检查是否已有记录
-        const existing = await env.DB.prepare(
-            'SELECT id FROM study_progress WHERE user_id = ?'
-        ).bind(userId).first();
-        
-        if (existing) {
-            // 更新
-            await env.DB.prepare(
-                'UPDATE study_progress SET plan_data = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?'
-            ).bind(JSON.stringify(planData), userId).run();
-        } else {
-            // 插入
-            await env.DB.prepare(
-                'INSERT INTO study_progress (user_id, plan_data) VALUES (?, ?)'
-            ).bind(userId, JSON.stringify(planData)).run();
-        }
-        
-        return true;
-    } catch (error) {
-        return false;
-    }
-}
-
-// 获取错题集
-async function getWrongQuestions(userId, env) {
-    try {
-        const questions = await env.DB.prepare(
-            'SELECT questions_data FROM wrong_questions WHERE user_id = ?'
-        ).bind(userId).first();
-        
-        return questions ? JSON.parse(questions.questions_data) : [];
-    } catch (error) {
-        return [];
-    }
-}
-
-// 保存错题集
-async function saveWrongQuestions(userId, questionsData, env) {
-    try {
-        // 检查是否已有记录
-        const existing = await env.DB.prepare(
-            'SELECT id FROM wrong_questions WHERE user_id = ?'
-        ).bind(userId).first();
-        
-        if (existing) {
-            // 更新
-            await env.DB.prepare(
-                'UPDATE wrong_questions SET questions_data = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?'
-            ).bind(JSON.stringify(questionsData), userId).run();
-        } else {
-            // 插入
-            await env.DB.prepare(
-                'INSERT INTO wrong_questions (user_id, questions_data) VALUES (?, ?)'
-            ).bind(userId, JSON.stringify(questionsData)).run();
-        }
-        
-        return true;
-    } catch (error) {
-        return false;
-    }
+// 获取客户端IP地址
+function getClientIP(request) {
+    return request.headers.get('CF-Connecting-IP') || 
+           request.headers.get('X-Forwarded-For') || 
+           'unknown';
 }
 
 // 主处理函数
 export default {
     async fetch(request, env, ctx) {
-        // 处理OPTIONS请求（CORS预检）
+        // 处理OPTIONS请求(CORS预检)
         if (request.method === 'OPTIONS') {
             return new Response(null, { headers: corsHeaders });
         }
         
         const url = new URL(request.url);
         const path = url.pathname;
+        const method = request.method;
         
-        // 路由处理
+        // 初始化服务
+        const authService = new AuthService(env, env.DB);
+        const syncService = new SyncService(env, env.DB);
+        const auditService = new AuditService(env, env.DB);
+        const offlineQueueService = new OfflineQueueService(env, env.DB);
+        
         try {
-            // 公开接口：注册
-            if (path === '/api/register' && request.method === 'POST') {
-                return await handleRegister(request, env);
+            // ==================== 公开接口 ====================
+            
+            // 用户注册
+            if (path === '/api/auth/register' && method === 'POST') {
+                const { username, password } = await request.json();
+                const result = await authService.register(username, password);
+                
+                // 记录审计日志
+                await auditService.log({
+                    userId: result.user?.id,
+                    username,
+                    operation: 'register',
+                    ipAddress: getClientIP(request),
+                    result: result.success ? 'success' : 'failed'
+                });
+                
+                return jsonResponse(
+                    result.success ? {
+                        message: '注册成功',
+                        user: result.user,
+                        accessToken: result.accessToken,
+                        refreshToken: result.refreshToken
+                    } : { error: result.error },
+                    result.success ? 200 : 400
+                );
             }
             
-            // 公开接口：登录
-            if (path === '/api/login' && request.method === 'POST') {
-                return await handleLogin(request, env);
+            // 用户登录
+            if (path === '/api/auth/login' && method === 'POST') {
+                const { username, password } = await request.json();
+                const result = await authService.login(username, password);
+                
+                // 记录审计日志
+                await auditService.log({
+                    userId: result.user?.id,
+                    username,
+                    operation: 'login',
+                    ipAddress: getClientIP(request),
+                    result: result.success ? 'success' : 'failed'
+                });
+                
+                return jsonResponse(
+                    result.success ? {
+                        message: '登录成功',
+                        user: result.user,
+                        accessToken: result.accessToken,
+                        refreshToken: result.refreshToken
+                    } : { error: result.error },
+                    result.success ? 200 : 401
+                );
             }
             
-            // 需要认证的接口
+            // ==================== 需要认证的接口 ====================
+            
+            // Token验证中间件
             const authHeader = request.headers.get('Authorization');
             if (!authHeader || !authHeader.startsWith('Bearer ')) {
                 return jsonResponse({ error: '未授权' }, 401);
             }
             
             const token = authHeader.substring(7);
-            const payload = await verifyToken(token, env.JWT_SECRET);
+            const payload = await authService.verifyToken(token);
             
             if (!payload) {
                 return jsonResponse({ error: 'Token无效或已过期' }, 401);
             }
             
             const userId = payload.userId;
+            const username = payload.username;
             
-            // 获取学习进度
-            if (path === '/api/progress' && request.method === 'GET') {
-                const progress = await getStudyProgress(userId, env);
-                return jsonResponse({ progress });
-            }
-            
-            // 保存学习进度
-            if (path === '/api/progress' && request.method === 'POST') {
-                const { planData } = await request.json();
-                const success = await saveStudyProgress(userId, planData, env);
-                return success 
-                    ? jsonResponse({ message: '保存成功' })
-                    : jsonResponse({ error: '保存失败' }, 500);
-            }
-            
-            // 获取错题集
-            if (path === '/api/wrong-questions' && request.method === 'GET') {
-                const questions = await getWrongQuestions(userId, env);
-                return jsonResponse({ questions });
-            }
-            
-            // 保存错题集
-            if (path === '/api/wrong-questions' && request.method === 'POST') {
-                const { questionsData } = await request.json();
-                const success = await saveWrongQuestions(userId, questionsData, env);
-                return success 
-                    ? jsonResponse({ message: '保存成功' })
-                    : jsonResponse({ error: '保存失败' }, 500);
-            }
-            
-            // 同步所有数据
-            if (path === '/api/sync' && request.method === 'POST') {
-                const { planData, questionsData } = await request.json();
-                const progressSuccess = await saveStudyProgress(userId, planData, env);
-                const questionsSuccess = await saveWrongQuestions(userId, questionsData, env);
+            // Token刷新
+            if (path === '/api/auth/refresh' && method === 'POST') {
+                const { refreshToken } = await request.json();
+                const result = await authService.refreshToken(refreshToken);
                 
-                return (progressSuccess && questionsSuccess)
-                    ? jsonResponse({ message: '同步成功' })
-                    : jsonResponse({ error: '同步失败' }, 500);
+                return jsonResponse(
+                    result.success ? {
+                        accessToken: result.accessToken,
+                        refreshToken: result.refreshToken
+                    } : { error: result.error },
+                    result.success ? 200 : 401
+                );
+            }
+            
+            // 用户登出
+            if (path === '/api/auth/logout' && method === 'POST') {
+                const result = await authService.logout(userId);
+
+                await auditService.log({
+                    userId,
+                    username,
+                    operation: 'logout',
+                    ipAddress: getClientIP(request),
+                    result: 'success'
+                });
+
+                return jsonResponse(result);
+            }
+
+            // 获取用户信息
+            if (path === '/api/auth/profile' && method === 'GET') {
+                const result = await authService.getProfile(userId);
+                return jsonResponse(result);
+            }
+
+            // 修改密码
+            if (path === '/api/auth/change-password' && method === 'POST') {
+                const { oldPassword, newPassword } = await request.json();
+                const result = await authService.changePassword(userId, oldPassword, newPassword);
+
+                await auditService.log({
+                    userId,
+                    username,
+                    operation: 'change_password',
+                    ipAddress: getClientIP(request),
+                    result: result.success ? 'success' : 'failed'
+                });
+
+                return jsonResponse(result);
+            }
+            
+            // ==================== 同步接口 ====================
+            
+            // 推送学习进度
+            if (path === '/api/sync/progress' && method === 'POST') {
+                const { planData, version } = await request.json();
+                const result = await syncService.pushData(userId, { data: planData, version }, 'progress');
+                
+                if (result.conflict) {
+                    return jsonResponse(result, 409); // 409 Conflict
+                }
+                
+                return jsonResponse(
+                    result.success ? { message: '推送成功' } : { error: result.error },
+                    result.success ? 200 : 500
+                );
+            }
+            
+            // 拉取学习进度
+            if (path === '/api/sync/progress' && method === 'GET') {
+                const since = url.searchParams.get('since');
+                const result = await syncService.pullData(userId, 'progress', since);
+                
+                return jsonResponse(
+                    result.success ? {
+                        progress: result.data,
+                        version: result.version,
+                        checksum: result.checksum,
+                        updatedAt: result.updatedAt
+                    } : { error: result.error },
+                    result.success ? 200 : 500
+                );
+            }
+            
+            // 推送错题集
+            if (path === '/api/sync/questions' && method === 'POST') {
+                const { questionsData, version } = await request.json();
+                const result = await syncService.pushData(userId, { data: questionsData, version }, 'questions');
+                
+                if (result.conflict) {
+                    return jsonResponse(result, 409);
+                }
+                
+                return jsonResponse(
+                    result.success ? { message: '推送成功' } : { error: result.error },
+                    result.success ? 200 : 500
+                );
+            }
+            
+            // 拉取错题集
+            if (path === '/api/sync/questions' && method === 'GET') {
+                const since = url.searchParams.get('since');
+                const result = await syncService.pullData(userId, 'questions', since);
+                
+                return jsonResponse(
+                    result.success ? {
+                        questions: result.data,
+                        version: result.version,
+                        checksum: result.checksum,
+                        updatedAt: result.updatedAt
+                    } : { error: result.error },
+                    result.success ? 200 : 500
+                );
+            }
+            
+            // 批量同步所有数据
+            if (path === '/api/sync/all' && method === 'POST') {
+                const data = await request.json();
+                const result = await syncService.syncAll(userId, data);
+                
+                return jsonResponse(
+                    result.success ? { message: '同步成功', results: result.results } : { error: result.error },
+                    result.success ? 200 : 500
+                );
             }
             
             // 获取所有数据
-            if (path === '/api/sync' && request.method === 'GET') {
-                const progress = await getStudyProgress(userId, env);
-                const questions = await getWrongQuestions(userId, env);
-                return jsonResponse({ progress, questions });
+            if (path === '/api/sync/all' && method === 'GET') {
+                const result = await syncService.getAll(userId);
+                
+                return jsonResponse(
+                    result.success ? result.data : { error: result.error },
+                    result.success ? 200 : 500
+                );
+            }
+            
+            // 解决冲突
+            if (path === '/api/sync/conflict' && method === 'POST') {
+                const { dataType, strategy, clientData } = await request.json();
+                const result = await syncService.resolveConflicts(userId, dataType, strategy, clientData);
+                
+                return jsonResponse(
+                    result.success ? { data: result.data } : { error: result.error },
+                    result.success ? 200 : 500
+                );
+            }
+            
+            // ==================== 离线队列接口 ====================
+            
+            // 查询离线队列
+            if (path === '/api/offline-queue' && method === 'GET') {
+                const result = await offlineQueueService.queryQueue(userId);
+                
+                return jsonResponse(
+                    result.success ? { queue: result.queue } : { error: result.error },
+                    result.success ? 200 : 500
+                );
+            }
+            
+            // 处理离线队列
+            if (path === '/api/offline-queue/process' && method === 'POST') {
+                const result = await offlineQueueService.processBatch(userId);
+                
+                return jsonResponse(
+                    result.success ? { message: '处理完成', results: result.results } : { error: result.error },
+                    result.success ? 200 : 500
+                );
+            }
+            
+            // ==================== 审计日志接口 ====================
+            
+            // 查询审计日志(仅管理员)
+            if (path === '/api/audit/logs' && method === 'GET') {
+                // 简单的管理员验证(实际应使用更严格的权限控制)
+                if (username !== 'admin') {
+                    return jsonResponse({ error: '无权限访问' }, 403);
+                }
+                
+                const params = {
+                    userId: url.searchParams.get('userId'),
+                    operation: url.searchParams.get('operation'),
+                    startTime: url.searchParams.get('startTime'),
+                    endTime: url.searchParams.get('endTime'),
+                    limit: parseInt(url.searchParams.get('limit') || '100'),
+                    offset: parseInt(url.searchParams.get('offset') || '0')
+                };
+                
+                const result = await auditService.query(params);
+                
+                return jsonResponse(
+                    result.success ? { logs: result.logs, total: result.total } : { error: result.error },
+                    result.success ? 200 : 500
+                );
             }
             
             // 404
             return jsonResponse({ error: '接口不存在' }, 404);
             
         } catch (error) {
+            console.error('服务器错误:', error);
             return jsonResponse({ error: '服务器错误: ' + error.message }, 500);
         }
     }

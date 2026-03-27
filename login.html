@@ -176,8 +176,7 @@
         </div>
 
         <div class="offline-notice">
-            💡 提示：首次使用请先注册账号<br>
-            <a href="#" onclick="showOfflineMode()">或点击这里离线使用（数据不会同步）</a>
+            💡 提示：首次使用请先注册账号,登录后可在多设备间同步学习进度
         </div>
 
         <div class="auth-tabs">
@@ -295,17 +294,17 @@
                 
                 if (response.ok) {
                     // 保存token和用户信息
-                    localStorage.setItem('authToken', data.token);
-                    localStorage.setItem('userInfo', JSON.stringify(data.user));
-                    localStorage.setItem('isOnlineMode', 'true');
-                    
+                    localStorage.setItem('accessToken', data.data.accessToken);
+                    localStorage.setItem('refreshToken', data.data.refreshToken);
+                    localStorage.setItem('userInfo', JSON.stringify(data.data.user));
+
                     showSuccess('登录成功！正在跳转...');
-                    
+
                     setTimeout(() => {
-                        window.location.href = '2026初级会计考试复习系统-完整版.html';
+                        window.location.href = 'index.html';
                     }, 1000);
                 } else {
-                    showError(data.error || '登录失败');
+                    showError(data.error?.message || '登录失败');
                 }
             } catch (error) {
                 showError('网络错误，请检查API地址是否正确');
@@ -343,17 +342,17 @@
                 
                 if (response.ok) {
                     // 保存token和用户信息
-                    localStorage.setItem('authToken', data.token);
-                    localStorage.setItem('userInfo', JSON.stringify(data.user));
-                    localStorage.setItem('isOnlineMode', 'true');
-                    
+                    localStorage.setItem('accessToken', data.data.accessToken);
+                    localStorage.setItem('refreshToken', data.data.refreshToken);
+                    localStorage.setItem('userInfo', JSON.stringify(data.data.user));
+
                     showSuccess('注册成功！正在跳转...');
-                    
+
                     setTimeout(() => {
-                        window.location.href = '2026初级会计考试复习系统-完整版.html';
+                        window.location.href = 'index.html';
                     }, 1000);
                 } else {
-                    showError(data.error || '注册失败');
+                    showError(data.error?.message || '注册失败');
                 }
             } catch (error) {
                 showError('网络错误，请检查API地址是否正确');
@@ -363,20 +362,13 @@
             }
         }
 
-        // 离线模式
-        function showOfflineMode() {
-            localStorage.setItem('isOnlineMode', 'false');
-            window.location.href = '2026初级会计考试复习系统-完整版.html';
-        }
-
         // 检查是否已登录
         window.onload = function() {
-            const token = localStorage.getItem('authToken');
-            const isOnlineMode = localStorage.getItem('isOnlineMode');
-            
-            if (token && isOnlineMode === 'true') {
+            const token = localStorage.getItem('accessToken');
+
+            if (token) {
                 // 已登录，直接跳转
-                window.location.href = '2026初级会计考试复习系统-完整版.html';
+                window.location.href = 'index.html';
             }
         };
     </script>

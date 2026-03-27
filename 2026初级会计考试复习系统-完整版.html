@@ -915,6 +915,514 @@
             background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
         }
     </style>
+
+    <!-- 强制登录同步模块 -->
+    <script src="auth-guard.js"></script>
+    <script src="network-monitor.js"></script>
+    <script src="user-profile.js"></script>
+    <script src="sync-manager.js"></script>
+    <script src="api-client.js"></script>
+
+    <style>
+        /* 个人中心样式 */
+        .user-profile-container {
+            position: relative;
+            display: inline-block;
+            margin-left: 20px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .user-avatar:hover {
+            transform: scale(1.1);
+        }
+
+        .user-menu {
+            display: none;
+            position: absolute;
+            top: 50px;
+            right: 0;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            min-width: 250px;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .user-menu-header {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .user-menu-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: white;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .user-menu-info {
+            flex: 1;
+        }
+
+        .user-menu-username {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .user-menu-id {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .user-menu-divider {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 5px 0;
+        }
+
+        .user-menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .user-menu-item:hover {
+            background: #f5f5f5;
+        }
+
+        .user-menu-item .menu-icon {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+
+        .user-menu-item.logout {
+            color: #e74c3c;
+        }
+
+        /* 修改密码对话框样式 */
+        .change-password-dialog .dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .change-password-dialog .dialog-content {
+            background: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            overflow: hidden;
+        }
+
+        .change-password-dialog .dialog-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .change-password-dialog .dialog-header h3 {
+            margin: 0;
+        }
+
+        .change-password-dialog .dialog-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .change-password-dialog .dialog-body {
+            padding: 20px;
+        }
+
+        .change-password-dialog .form-group {
+            margin-bottom: 15px;
+        }
+
+        .change-password-dialog .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .change-password-dialog .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        .change-password-dialog .dialog-footer {
+            display: flex;
+            justify-content: flex-end;
+            padding: 15px 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .change-password-dialog .btn-cancel,
+        .change-password-dialog .btn-confirm {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .change-password-dialog .btn-cancel {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .change-password-dialog .btn-confirm {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        /* 离线提示样式 */
+        .offline-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .offline-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .offline-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .offline-content h2 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .offline-content p {
+            margin: 10px 0;
+            color: #666;
+        }
+
+        .offline-tip {
+            font-size: 14px;
+            color: #999;
+        }
+
+        .offline-refresh-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+
+    <!-- 强制登录同步模块 -->
+    <script src="auth-guard.js"></script>
+    <script src="network-monitor.js"></script>
+    <script src="user-profile.js"></script>
+    <script src="sync-manager.js"></script>
+    <script src="api-client.js"></script>
+
+    <style>
+        /* 个人中心样式 */
+        .user-profile-container {
+            position: relative;
+            display: inline-block;
+            margin-left: 20px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .user-avatar:hover {
+            transform: scale(1.1);
+        }
+
+        .user-menu {
+            display: none;
+            position: absolute;
+            top: 50px;
+            right: 0;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            min-width: 250px;
+            z-index: 1000;
+            overflow: hidden;
+        }
+
+        .user-menu-header {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .user-menu-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: white;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .user-menu-info {
+            flex: 1;
+        }
+
+        .user-menu-username {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .user-menu-id {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .user-menu-divider {
+            height: 1px;
+            background: #e0e0e0;
+            margin: 5px 0;
+        }
+
+        .user-menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .user-menu-item:hover {
+            background: #f5f5f5;
+        }
+
+        .user-menu-item .menu-icon {
+            margin-right: 10px;
+            font-size: 18px;
+        }
+
+        .user-menu-item.logout {
+            color: #e74c3c;
+        }
+
+        /* 修改密码对话框样式 */
+        .change-password-dialog .dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .change-password-dialog .dialog-content {
+            background: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            overflow: hidden;
+        }
+
+        .change-password-dialog .dialog-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .change-password-dialog .dialog-header h3 {
+            margin: 0;
+        }
+
+        .change-password-dialog .dialog-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        .change-password-dialog .dialog-body {
+            padding: 20px;
+        }
+
+        .change-password-dialog .form-group {
+            margin-bottom: 15px;
+        }
+
+        .change-password-dialog .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .change-password-dialog .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+        }
+
+        .change-password-dialog .dialog-footer {
+            display: flex;
+            justify-content: flex-end;
+            padding: 15px 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .change-password-dialog .btn-cancel,
+        .change-password-dialog .btn-confirm {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .change-password-dialog .btn-cancel {
+            background: #e0e0e0;
+            color: #666;
+        }
+
+        .change-password-dialog .btn-confirm {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        /* 离线提示样式 */
+        .offline-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .offline-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        .offline-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+
+        .offline-content h2 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+
+        .offline-content p {
+            margin: 10px 0;
+            color: #666;
+        }
+
+        .offline-tip {
+            font-size: 14px;
+            color: #999;
+        }
+
+        .offline-refresh-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -1031,8 +1539,69 @@
         let examAnswers = {};
         let wrongQuestions = JSON.parse(localStorage.getItem('wrongQuestions') || '[]');
 
+        // API基础URL
+        const API_BASE_URL = 'https://accounting-exam-api.1227944456.workers.dev';
+
+        // 全局变量
+        let apiClient = null;
+        let syncManager = null;
+        let networkMonitor = null;
+        let userProfile = null;
+
         // 初始化
         document.addEventListener('DOMContentLoaded', async function() {
+            // 1. 检查登录状态
+            if (typeof AuthGuard !== 'undefined' && !AuthGuard.requireAuth()) {
+                return; // 未登录,已跳转到登录页面
+            }
+
+            // 2. 设置Token自动刷新
+            if (typeof AuthGuard !== 'undefined') {
+                AuthGuard.setupTokenRefresh();
+            }
+
+            // 3. 初始化网络监测
+            if (typeof NetworkMonitor !== 'undefined') {
+                networkMonitor = new NetworkMonitor();
+                networkMonitor.startMonitoring();
+                networkMonitor.onOnline(() => {
+                    location.reload();
+                });
+            }
+
+            // 4. 初始化个人中心
+            if (typeof UserProfile !== 'undefined') {
+                userProfile = new UserProfile();
+                userProfile.render();
+            }
+
+            // 5. 初始化API客户端
+            if (typeof ApiClient !== 'undefined') {
+                apiClient = new ApiClient(API_BASE_URL);
+            }
+
+            // 6. 初始化同步管理器
+            if (typeof SyncManager !== 'undefined' && apiClient) {
+                syncManager = new SyncManager(apiClient);
+            }
+
+            // 7. 从服务器加载用户数据
+            if (syncManager) {
+                try {
+                    const result = await syncManager.fetchAll();
+                    if (result.success) {
+                        if (result.data.progress) {
+                            studyPlan = result.data.progress;
+                        }
+                        if (result.data.questions) {
+                            wrongQuestions = result.data.questions;
+                        }
+                    }
+                } catch (error) {
+                    console.error('加载数据失败:', error);
+                }
+            }
+
             await generateStudyPlan();
             renderKnowledgeCards();
             await loadWrongQuestions();
@@ -1049,11 +1618,7 @@
         // 生成复习计划（90天，每周5天学习，2天休息）
         async function generateStudyPlan() {
             // 在线模式下从服务器获取最新进度
-            if (apiService.isOnline()) {
-                const response = await apiService.getProgress();
-                if (response.success && response.data) {
-                    studyPlan = response.data;
-                    localStorage.setItem('studyPlan', JSON.stringify(studyPlan));
+            
                     renderCalendar();
                     updateProgress();
                     return;
@@ -1061,7 +1626,7 @@
             }
             
             // 离线模式或获取失败时从本地获取
-            const savedPlan = localStorage.getItem('studyPlan');
+            
             if (savedPlan) {
                 studyPlan = JSON.parse(savedPlan);
             } else {
@@ -1141,12 +1706,13 @@
                     dayCount++;
                 }
 
-                localStorage.setItem('studyPlan', JSON.stringify(studyPlan));
+                // 同步学习进度到服务器
+            if (syncManager) {
+                await syncManager.syncProgress(studyPlan);
+            }
                 
                 // 同步到服务器
-                if (apiService.isOnline()) {
-                    await apiService.syncProgress(studyPlan);
-                }
+                
             }
 
             renderCalendar();
@@ -1203,12 +1769,13 @@
         async function checkIn(index) {
             if (!studyPlan[index].isRest && !studyPlan[index].completed) {
                 studyPlan[index].completed = true;
-                localStorage.setItem('studyPlan', JSON.stringify(studyPlan));
+                // 同步学习进度到服务器
+            if (syncManager) {
+                await syncManager.syncProgress(studyPlan);
+            }
                 
                 // 同步到服务器
-                if (apiService.isOnline()) {
-                    await apiService.syncProgress(studyPlan);
-                }
+                
                 
                 renderCalendar();
                 updateProgress();
@@ -3496,12 +4063,13 @@
                     wrongQuestions.push(wrongQ);
                 }
             });
-            localStorage.setItem('wrongQuestions', JSON.stringify(wrongQuestions));
+            // 同步错题集到服务器
+        if (syncManager) {
+            await syncManager.syncQuestions(wrongQuestions);
+        }
             
             // 同步到服务器
-            if (apiService.isOnline()) {
-                await apiService.syncWrongQuestions(wrongQuestions);
-            }
+            
 
             // 显示结果
             showExamResult(score, passed, correctCount, questions.length);
@@ -3722,11 +4290,7 @@
         // 加载错题集
         async function loadWrongQuestions() {
             // 在线模式下从服务器获取最新错题集
-            if (apiService.isOnline()) {
-                const response = await apiService.getWrongQuestions();
-                if (response.success && response.data) {
-                    wrongQuestions = response.data;
-                    localStorage.setItem('wrongQuestions', JSON.stringify(wrongQuestions));
+            
                 }
             } else {
                 const savedWrongQuestions = localStorage.getItem('wrongQuestions');
@@ -3766,12 +4330,13 @@
         async function removeWrongQuestion(index) {
             if (confirm('确定要移除此题吗？')) {
                 wrongQuestions.splice(index, 1);
-                localStorage.setItem('wrongQuestions', JSON.stringify(wrongQuestions));
+                // 同步错题集到服务器
+        if (syncManager) {
+            await syncManager.syncQuestions(wrongQuestions);
+        }
                 
                 // 同步到服务器
-                if (apiService.isOnline()) {
-                    await apiService.syncWrongQuestions(wrongQuestions);
-                }
+                
                 
                 loadWrongQuestions();
             }
