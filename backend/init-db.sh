@@ -1,138 +1,33 @@
-# 数据库初始化说明
+#!/bin/bash
+# 数据库初始化脚本 - 分步执行
 
-## 问题: D1_ERROR: no such table: users
-
-数据库表不存在,需要初始化D1数据库。
-
----
-
-## 🚀 快速解决方案
-
-### 方法1: 使用批处理脚本(Windows)
-
-```bash
-# 进入backend目录
-cd backend
-
-# 运行初始化脚本
-init-db.bat
-```
-
-### 方法2: 使用Shell脚本(Linux/Mac)
-
-```bash
-# 进入backend目录
-cd backend
-
-# 添加执行权限
-chmod +x init-db.sh
-
-# 运行初始化脚本
-./init-db.sh
-```
-
-### 方法3: 手动分步执行
-
-```bash
-# 进入backend目录
-cd backend
+echo "开始初始化数据库..."
 
 # 1. 创建users表
+echo "创建users表..."
 wrangler d1 execute accounting-exam-db --remote --command="CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password TEXT NOT NULL, salt TEXT DEFAULT '', token_version INTEGER DEFAULT 1, version INTEGER DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_login DATETIME)"
 
 # 2. 创建study_progress表
+echo "创建study_progress表..."
 wrangler d1 execute accounting-exam-db --remote --command="CREATE TABLE IF NOT EXISTS study_progress (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, subject TEXT NOT NULL, chapter TEXT NOT NULL, progress INTEGER DEFAULT 0, last_study DATETIME, version INTEGER DEFAULT 1, checksum TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users(id))"
 
 # 3. 创建wrong_questions表
+echo "创建wrong_questions表..."
 wrangler d1 execute accounting-exam-db --remote --command="CREATE TABLE IF NOT EXISTS wrong_questions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, question_id TEXT NOT NULL, question_text TEXT NOT NULL, subject TEXT NOT NULL, wrong_count INTEGER DEFAULT 1, last_wrong DATETIME, version INTEGER DEFAULT 1, checksum TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users(id))"
 
 # 4. 创建audit_logs表
+echo "创建audit_logs表..."
 wrangler d1 execute accounting-exam-db --remote --command="CREATE TABLE IF NOT EXISTS audit_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT, operation TEXT NOT NULL, details TEXT, ip_address TEXT, result TEXT NOT NULL, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)"
 
 # 5. 创建索引
+echo "创建索引..."
 wrangler d1 execute accounting-exam-db --remote --command="CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)"
 wrangler d1 execute accounting-exam-db --remote --command="CREATE INDEX IF NOT EXISTS idx_study_progress_user ON study_progress(user_id)"
 wrangler d1 execute accounting-exam-db --remote --command="CREATE INDEX IF NOT EXISTS idx_wrong_questions_user ON wrong_questions(user_id)"
 wrangler d1 execute accounting-exam-db --remote --command="CREATE INDEX IF NOT EXISTS idx_audit_logs_user ON audit_logs(user_id)"
-```
 
----
-
-## 验证数据库初始化
-
-执行以下命令验证表是否创建成功:
-
-```bash
-# 查看所有表
+# 6. 验证表创建
+echo "验证表创建..."
 wrangler d1 execute accounting-exam-db --remote --command="SELECT name FROM sqlite_master WHERE type='table'"
 
-# 查看users表结构
-wrangler d1 execute accounting-exam-db --remote --command="PRAGMA table_info(users)"
-```
-
-预期输出应该包含以下表:
-- users
-- study_progress
-- wrong_questions
-- audit_logs
-
----
-
-## 完整操作步骤
-
-### 1. 创建D1数据库(如果还没有)
-```bash
-wrangler d1 create accounting-exam-db
-```
-
-### 2. 更新wrangler.toml配置
-确保 `wrangler.toml` 中包含数据库配置:
-```toml
-[[d1_databases]]
-binding = "DB"
-database_name = "accounting-exam-db"
-database_id = "你的数据库ID"
-```
-
-### 3. 初始化数据库表
-```bash
-wrangler d1 execute accounting-exam-db --remote --file=./schema.sql
-```
-
-### 4. 部署Workers
-```bash
-wrangler deploy
-```
-
-### 5. 测试注册功能
-打开登录页面,尝试注册新用户。
-
----
-
-## 常见问题
-
-### Q1: 数据库ID在哪里找?
-**A**: 在Cloudflare Dashboard的D1页面,或者执行 `wrangler d1 list` 查看。
-
-### Q2: 本地测试如何初始化?
-**A**: 使用 `--local` 参数:
-```bash
-wrangler d1 execute accounting-exam-db --local --file=./schema.sql
-```
-
-### Q3: 如何查看数据库内容?
-**A**: 使用Wrangler CLI:
-```bash
-wrangler d1 execute accounting-exam-db --remote --command="SELECT * FROM users"
-```
-
----
-
-## 下一步
-
-数据库初始化完成后,重新测试注册功能:
-1. 打开 `login.html`
-2. 点击"注册"标签
-3. 填写用户名和密码
-4. 点击"注册"按钮
-5. 应该可以成功注册
+echo "数据库初始化完成!"
