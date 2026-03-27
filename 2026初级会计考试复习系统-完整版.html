@@ -1550,9 +1550,12 @@
 
         // 初始化
         document.addEventListener('DOMContentLoaded', async function() {
-            // 1. 检查登录状态
-            if (typeof AuthGuard !== 'undefined' && !AuthGuard.requireAuth()) {
-                return; // 未登录,已跳转到登录页面
+            // 1. 检查登录状态(简化版,避免跳转问题)
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                // 未登录,跳转到登录页面
+                window.location.href = 'login.html';
+                return;
             }
 
             // 2. 设置Token自动刷新
